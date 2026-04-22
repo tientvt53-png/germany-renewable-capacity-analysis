@@ -1,0 +1,203 @@
+---
+title: "Germany Renewable Capacity Outlook, 2030–2040"
+author: "Vu Thuy Tien Trinh"
+output: pdf_document
+---
+## Introduction
+
+This report analyzes Germany’s projected renewable electricity capacity and electricity demand between 2030 and 2040. The objective is to assess whether renewable expansion is keeping pace with rising electricity consumption and to identify which technologies drive future growth.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  results = "hide"
+)
+```
+
+```{r library}
+library(readxl)
+library(tidyverse)
+library(janitor)
+library(scales)
+```
+
+
+```{r import data}
+file_path <- "future_agorameter.xlsx"
+
+res <- read_excel(file_path, sheet = "Capacities & elec. consumption", skip = 2)
+
+res <- res %>%
+  rename(source = ...1) %>% 
+  clean_names()
+
+res_long <- res %>%
+  pivot_longer(
+    cols = -c(source, unit),
+    names_to = "year",
+    values_to = "value"
+  ) %>% 
+  mutate(
+    year = str_remove(year, "x"),
+    year = as.numeric(year)
+  )
+head(res_long)
+names(res_long)
+```
+
+
+```{r isolating data}
+res_capacity <- res_long %>%
+  filter(source != "Electricity Consumption")
+
+res_demand <- res_long %>%
+  filter(source == "Electricity Consumption")
+
+unique(res_capacity$source)
+table(res_capacity$source)
+unique(res_long$unit)
+```
+
+
+```{r analysis RES data}
+total_res <- res_capacity %>%
+  group_by(year) %>%
+  summarise(
+    total_capacity = sum(value)
+  )
+total_res
+```
+
+
+```{r analysis Consumption data}
+total_demand <- res_demand %>%
+  select(year, value) %>%
+  rename(
+    electricity_demand = value
+  )
+total_demand
+```
+
+
+```{r merging 2 above  datasets}
+energy_summary <- total_res %>%
+  left_join(total_demand, by = "year")
+energy_summary
+```
+
+
+```{r growth rate of 2 above sectors}
+growth_summary <- energy_summary %>%
+  summarise(
+    res_growth_pct =
+      (last(total_capacity) - first(total_capacity)) /
+      first(total_capacity) * 100,
+
+    demand_growth_pct =
+      (last(electricity_demand) - first(electricity_demand)) /
+      first(electricity_demand) * 100
+  )
+growth_summary
+```
+
+
+```{r decompose RES capacity}
+source_growth <- res_capacity %>%
+  filter(year %in% c(2030, 2040)) %>%
+  select(source, year, value) %>%
+  pivot_wider(names_from = year, values_from = value) %>%
+  mutate(
+    absolute_change = `2040` - `2030`,
+    growth_pct = (`2040` - `2030`) / `2030` * 100
+  )
+source_growth
+```
+
+
+```{r decompose each types of RES capacity}
+mix_share <- res_capacity %>%
+  filter(year %in% c(2030, 2040)) %>%
+  group_by(year) %>%
+  mutate(
+    total_year = sum(value),
+    share_pct = value / total_year * 100
+  ) %>%
+  ungroup()
+mix_share
+```
+## Renewable Capacity by Source
+
+```{r visualization RES changing over years}
+ggplot(res_capacity, aes(x = year, y = value, color = source)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Renewable Capacity by Source, Germany (2030–2040)",
+    x = "Year",
+    y = "Capacity (GW)",
+    color = NULL
+  ) +
+  scale_x_continuous(breaks = 2030:2040) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+Renewable capacity increases strongly between 2030 and 2040. Photovoltaic shows the largest expansion, while onshore and offshore wind also grow steadily. Hydro remains stable and biomass declines slightly.
+
+## Renewable Energy Mix: 2030 vs 2040
+
+```{r stacked bar}
+ggplot(mix_share, aes(x = factor(year), y = share_pct, fill = source)) +
+  geom_col(width = 0.7) +
+  labs(
+    title = "Renewable energy mix in 2030 and 2040",
+    x = "Year",
+    y = "Share of total renewable capacity (%)",
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+Germany’s renewable mix becomes more concentrated in solar and wind by 2040. Photovoltaic remains the largest source, while offshore wind gains importance. Biomass and hydro represent a smaller share over time.
+
+## Renewable Capacity Growth vs Electricity Demand Growth
+
+```{r index}
+energy_index <- energy_summary %>%
+  mutate(
+    capacity_index = total_capacity / first(total_capacity) * 100,
+    demand_index = electricity_demand / first(electricity_demand) * 100
+  )
+energy_index_long <- energy_index %>%
+  select(year, capacity_index, demand_index) %>%
+  pivot_longer(
+    cols = c(capacity_index, demand_index),
+    names_to = "series",
+    values_to = "index_value"
+  )
+ggplot(energy_index_long, aes(x = year, y = index_value, color = series)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Indexed comparison of renewable capacity and electricity demand",
+    x = "Year",
+    y = "Index (2030 = 100)",
+    color = NULL
+  ) +
+  scale_x_continuous(breaks = 2030:2040) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+Renewable capacity grows faster than electricity demand over the forecast period. This suggests strong renewable expansion, although future adequacy will also depend on storage, grid capacity, and generation patterns.
+
+## Conclusion
+
+Germany’s projected renewable capacity grows substantially between 2030 and 2040 and outpaces the growth of electricity demand. Future expansion is mainly driven by photovoltaic and wind technologies, while hydro and biomass play a smaller role. However, capacity growth alone does not guarantee supply adequacy, which also depends on storage, grid infrastructure, and generation profiles.
