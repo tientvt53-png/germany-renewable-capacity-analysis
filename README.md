@@ -14,5 +14,5 @@ This project analyzes Germany's projected renewable electricity capacity and ele
 - Capacity growth alone does not guarantee supply adequacy.
 
 ## Tools Used
-R, tidyverse, ggplot2, readxl# germany-renewable-capacity-analysis
+R, tidyverse, ggplot2, readxl 
 R project analyzing Germany renewable energy capacity and electricity demand (2030–2040)
