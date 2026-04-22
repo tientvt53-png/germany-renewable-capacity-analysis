@@ -15,4 +15,3 @@ This project analyzes Germany's projected renewable electricity capacity and ele
 
 ## Tools Used
 R, tidyverse, ggplot2, readxl 
-R project analyzing Germany renewable energy capacity and electricity demand (2030–2040)
